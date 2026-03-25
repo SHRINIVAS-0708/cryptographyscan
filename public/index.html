@@ -144,7 +144,7 @@ function selectPlatform(p){
 }
 
 function login(){
-    fetch("http://localhost:3000/login", {
+    fetch("https://cryptographyscan.onrender.com/login", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
@@ -168,7 +168,7 @@ function showVerify(){
 }
 
 function register(){
-    fetch("http://localhost:3000/register", {
+    fetch("https://cryptographyscan.onrender.com/register", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({
@@ -199,7 +199,7 @@ function startScanner(){
 
         document.getElementById("scannedHash").innerText = decodedText;
 
-        fetch("http://localhost:3000/verify", {
+        fetch("https://cryptographyscan.onrender.com/verify", {
             method:"POST",
             headers:{"Content-Type":"application/json"},
             body: JSON.stringify({hash:decodedText})
@@ -215,7 +215,7 @@ function startScanner(){
 function manualVerify(){
     let hash = document.getElementById("manualHash").value;
 
-    fetch("http://localhost:3000/verify", {
+    fetch("https://cryptographyscan.onrender.com/verify", {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body: JSON.stringify({hash:hash})
