@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CRYPTOGRAPHYSCAN</title>
+
+    <script src="https://unpkg.com/html5-qrcode"></script>
+
+    <style>
+        body {
+            font-family: Arial;
+            text-align: center;
+            background: linear-gradient(to right, #1e3c72, #2a5298);
+            color: white;
+        }
+
+        h1 { font-size: 40px; }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 20px;
+            border: none;
+            background: #00c6ff;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #00ffcc;
+            transform: scale(1.1);
+        }
+
+        input {
+            padding: 10px;
+            margin: 5px;
+            border-radius: 10px;
+            border: none;
+        }
+
+        .hidden { display: none; }
+
+        .box {
+            margin-top: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 15px;
+        }
+
+        #result {
+            font-size: 28px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>CRYPTOGRAPHYSCAN</h1>
+
+<button onclick="goHome()">🏠 Home</button>
+<button onclick="goBack()">⬅ Back</button>
+
+<!-- PLATFORM -->
+<div id="platform">
+    <h2>Choose Platform</h2>
+    <button onclick="selectPlatform('amazon')">Amazon</button>
+    <button onclick="selectPlatform('flipkart')">Flipkart</button>
+    <button onclick="selectPlatform('myntra')">Myntra</button>
+</div>
+
+<!-- LOGIN -->
+<div id="login" class="hidden">
+    <h2>Login</h2>
+    <input id="id" placeholder="ID"><br>
+    <input id="pass" placeholder="Password"><br>
+    <button onclick="login()">Login</button>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard" class="hidden">
+    <h2>Dashboard</h2>
+    <button onclick="showRegister()">Register Product</button>
+    <button onclick="showVerify()">Scan Product</button>
+</div>
+
+<!-- REGISTER -->
+<div id="register" class="hidden box">
+    <h2>Register Product</h2>
+    <input id="brand" placeholder="Brand"><br>
+    <input id="date" placeholder="Date"><br>
+    <input id="batch" placeholder="Batch"><br>
+    <input id="price" placeholder="Price"><br>
+    <button onclick="register()">Submit</button>
+
+    <div id="qr"></div>
+</div>
+
+<!-- VERIFY -->
+<div id="verify" class="hidden box">
+    <h2>Scan Product</h2>
+
+    <div id="reader" style="width:300px; margin:auto;"></div>
+
+    <p><b>Scanned Hash:</b></p>
+    <p id="scannedHash"></p>
+
+    <h2 id="result"></h2>
+
+    <hr>
+
+    <h3>Manual Verification</h3>
+    <input id="manualHash" placeholder="Enter Hash"><br>
+    <button onclick="manualVerify()">Check</button>
+</div>
+
+<script>
+
+let selectedPlatform = "";
+let historyStack = [];
+
+// Navigation
+function showPage(page){
+    let pages = ["platform","login","dashboard","register","verify"];
+    pages.forEach(p => document.getElementById(p).classList.add("hidden"));
+    document.getElementById(page).classList.remove("hidden");
+    historyStack.push(page);
+}
+
+function goBack(){
+    historyStack.pop();
+    let prev = historyStack.pop();
+    showPage(prev || "platform");
+}
+
+function goHome(){
+    historyStack = [];
+    showPage("platform");
+}
+
+// Flow
+function selectPlatform(p){
+    selectedPlatform = p;
+    showPage("login");
+}
+
+function login(){
+    fetch("http://localhost:3000/login", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+            platform:selectedPlatform,
+            id:document.getElementById("id").value,
+            password:document.getElementById("pass").value
+        })
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        if(data.success) showPage("dashboard");
+        else alert("Invalid login");
+    });
+}
+
+function showRegister(){ showPage("register"); }
+
+function showVerify(){
+    showPage("verify");
+    startScanner();
+}
+
+function register(){
+    fetch("http://localhost:3000/register", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+            brand:brand.value,
+            date:date.value,
+            batch:batch.value,
+            price:price.value
+        })
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        document.getElementById("qr").innerHTML =
+        `<h3>QR Code</h3><img src="${data.qr}"><p>${data.hash}</p>`;
+    });
+}
+
+// 🔥 SCANNER
+function startScanner(){
+    document.getElementById("reader").innerHTML = "";
+
+    let scanner = new Html5QrcodeScanner("reader", {
+        fps:10,
+        qrbox:250
+    });
+
+    scanner.render((decodedText)=>{
+        scanner.clear();
+
+        document.getElementById("scannedHash").innerText = decodedText;
+
+        fetch("http://localhost:3000/verify", {
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body: JSON.stringify({hash:decodedText})
+        })
+        .then(res=>res.json())
+        .then(data=>{
+            showResult(data.valid);
+        });
+    });
+}
+
+// Manual check
+function manualVerify(){
+    let hash = document.getElementById("manualHash").value;
+
+    fetch("http://localhost:3000/verify", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({hash:hash})
+    })
+    .then(res=>res.json())
+    .then(data=>{
+        showResult(data.valid);
+    });
+}
+
+// Result display
+function showResult(isValid){
+    let result = document.getElementById("result");
+
+    if(isValid){
+        result.innerHTML="✅ VERIFIED PRODUCT";
+        result.style.color="lime";
+    } else {
+        result.innerHTML="❌ FAKE PRODUCT";
+        result.style.color="red";
+    }
+}
+
+// Start
+showPage("platform");
+
+</script>
+
+</body>
+</html>
